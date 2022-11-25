@@ -28,5 +28,6 @@ RUN chmod -R 777 .
 COPY 000-default.conf /etc/apache2/sites-available
 
 RUN a2enmod php8.0 rewrite
-expose 80
-RUN /etc/init.d/apache2 start
+expose 8
+#RUN /etc/init.d/apache2 start
+CMD [“apache2ctl”, “-D”, “FOREGROUND”]
