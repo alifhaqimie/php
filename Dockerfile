@@ -22,11 +22,11 @@ COPY Seoland/ /var/www/html/
 
 RUN composer update
 RUN composer install
+RUN php artisan key:generate
 RUN chmod -R 777 .
 
 COPY 000-default.conf /etc/apache2/sites-available
 
 RUN a2enmod php8.0 rewrite
-RUN service apache2 restart
-EXPOSE 80
-CMD apachectl -D FOREGROUND
+expose 80
+RUN /etc/init.d/apache2 start
