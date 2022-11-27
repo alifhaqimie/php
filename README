@@ -1,3 +1,64 @@
 - Use the Seoland.tar.gz
 - Install php8.0 https://www.vultr.com/docs/upgrade-from-php-7-to-php-8-on-ubuntu-20-04-with-apache/
 - sudo sudo find . -maxdepth 1 -type d -exec chmod 775 {} \;
+
+pipeline{
+    
+    agent any
+    
+    stages{
+        stage("Clone") {
+            steps{
+                sh '''#!/bin/bash
+                rm -rf php
+                if [ -d php ]
+                  then 
+                    echo "Project dir already exists..."
+                  else
+                    echo "Cloning project source code..."
+                    git clone -b main https://github.com/alifhaqimie/php 
+                  
+                fi;
+                  '''
+            }
+        }
+    stage("Build") {
+            steps{
+                sh '''#!/bin/bash
+                echo "building the application..."
+                pwd
+                cd php
+                git checkout main
+                docker build -t seoland .
+                '''
+            }
+        }
+        stage("Test") {
+            steps{
+                 sh '''#!/bin/bash
+                 echo "testing the application..."
+                 docker rm -f seoland
+                 docker run -dti -h seoland -p 9999:80 --name seoland seoland
+                 docker exec seoland bash -c "ls;pwd;ls -l tests/Feature"
+                 docker exec -u root seoland bash -c "chmod 777 /var/www/html/tests/Feature/HttpTest.php"
+                 docker exec -u root seoland bash -c "vendor/bin/phpunit ./tests/Feature/HttpTest"
+                 docker rm -f seoland
+                 '''
+            }
+        }
+        stage("Deploy") {
+            steps{
+                 sh '''#!/bin/bash
+                 echo "deploying the application..."
+                 docker rm -f mysqlserver seoland 2>/dev/null
+                 docker run -p 3306:3306 --name mysqlserver  -e MYSQL_ROOT_PASSWORD=seoland2022 -d mysql
+                 HOST_IP=$(hostname -I | awk '{ print $1}')
+                 container_ip=$(docker inspect mysqlserver | jq -r .[].NetworkSettings.Networks.bridge.IPAddress)
+                 #docker exec -i mysqlserver bash -c "mysql -uroot -pseoland2022  -e 'rename user 'root'@'localhost' to 'root'@'$container_ip'; show databases'"
+                 docker run -dti -h seoland -p 9999:80 --name seoland seoland
+                 docker exec -i -u root seoland bash -c   "/etc/init.d/apache2 start; /etc/init.d/apache2 status"
+                 '''
+            }
+        }
+    }
+}
